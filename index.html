@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Supply Chain Delay Prediction — ML Portfolio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --navy:   #0F1B2D;
+  --panel:  #162840;
+  --slate:  #1A3252;
+  --teal:   #00B4D8;
+  --teal-lt:#38D4F0;
+  --silver: #94A3B8;
+  --white:  #F8FAFC;
+  --muted:  #CBD5E1;
+  --border: rgba(148,163,184,0.15);
+  --mono: 'DM Mono', monospace;
+  --sans: 'Inter', sans-serif;
+}
+html { scroll-behavior: smooth; }
+body {
+  background: var(--navy); color: var(--white);
+  font-family: var(--sans); font-size: 15px; line-height: 1.65;
+  -webkit-font-smoothing: antialiased; min-height: 100vh;
+}
+
+/* ── HEADER ── */
+header {
+  background: rgba(15,27,45,0.95);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 20px 48px 0;
+  position: sticky; top: 0; z-index: 100;
+}
+.header-top {
+  display: flex; align-items: flex-start;
+  justify-content: space-between; margin-bottom: 20px;
+}
+.header-title h1 {
+  font-size: 18px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.3;
+}
+.header-title h1 em { font-style: normal; color: var(--teal-lt); }
+.header-title p {
+  font-size: 12px; color: var(--silver); margin-top: 4px;
+}
+.header-meta {
+  display: flex; align-items: center; gap: 12px; flex-shrink: 0;
+}
+.btn-gh {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: var(--teal); color: var(--navy);
+  font-size: 12px; font-weight: 600; padding: 8px 16px;
+  text-decoration: none; border-radius: 4px;
+  white-space: nowrap;
+}
+.btn-gh:hover { background: var(--teal-lt); }
+
+/* ── TABS ── */
+.tabs {
+  display: flex; gap: 0; border-bottom: none;
+}
+.tab-btn {
+  background: none; border: none; cursor: pointer;
+  font-family: var(--sans); font-size: 13px; font-weight: 500;
+  color: var(--silver); padding: 10px 22px 12px;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.tab-btn:hover { color: var(--white); }
+.tab-btn.active { color: var(--teal-lt); border-bottom-color: var(--teal); }
+
+/* ── CONTENT ── */
+.tab-panel { display: none; padding: 40px 48px; max-width: 1100px; margin: 0 auto; }
+.tab-panel.active { display: block; }
+
+/* ── OVERVIEW ── */
+.overview-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 32px;
+}
+.stat-band {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 2px; margin-bottom: 32px;
+}
+.stat-cell {
+  background: var(--panel); padding: 20px 18px;
+}
+.stat-cell:first-child { border-radius: 6px 0 0 6px; }
+.stat-cell:last-child  { border-radius: 0 6px 6px 0; }
+.stat-num { font-family: var(--mono); font-size: 28px; color: var(--teal-lt); line-height: 1; }
+.stat-lbl { font-size: 11px; color: var(--silver); margin-top: 5px; }
+
+.overview-card {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 8px; padding: 24px;
+}
+.overview-card h3 { font-size: 13px; font-weight: 600; margin-bottom: 12px; }
+.overview-card p  { font-size: 13px; color: var(--silver); line-height: 1.7; }
+
+.model-row {
+  display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-bottom: 32px;
+}
+.model-mini {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 8px; padding: 18px 16px; position: relative;
+}
+.model-mini.best { border-color: rgba(0,180,216,0.4); }
+.model-mini.best::after {
+  content: '★ Best balance';
+  position: absolute; top: 10px; right: 10px;
+  font-family: var(--mono); font-size: 10px; color: var(--teal);
+  background: rgba(0,180,216,0.1); padding: 2px 7px; border-radius: 3px;
+}
+.mm-name { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+.mm-type { font-family: var(--mono); font-size: 10px; color: var(--silver); margin-bottom: 14px; }
+.mm-metrics { display: flex; flex-direction: column; gap: 6px; }
+.mm-row { display: flex; justify-content: space-between; }
+.mm-k { font-size: 11px; color: var(--silver); }
+.mm-v { font-family: var(--mono); font-size: 13px; color: var(--white); }
+.mm-v.hi { color: var(--teal-lt); }
+.bar-t { height: 3px; background: rgba(148,163,184,0.12); border-radius: 2px; margin-top: 10px; }
+.bar-f { height: 3px; border-radius: 2px; background: var(--teal); }
+
+/* ── DATA TAB ── */
+.pipeline { display: grid; grid-template-columns: repeat(5,1fr); gap: 2px; margin-bottom: 32px; }
+.pipe-step { background: var(--panel); padding: 18px 14px; position: relative; }
+.pipe-step:first-child { border-radius: 6px 0 0 6px; }
+.pipe-step:last-child  { border-radius: 0 6px 6px 0; }
+.pipe-step::after {
+  content: '›'; position: absolute; right: -8px; top: 50%;
+  transform: translateY(-50%); color: var(--teal); font-size: 16px; z-index: 1;
+}
+.pipe-step:last-child::after { display: none; }
+.pipe-num { font-family: var(--mono); font-size: 10px; color: var(--teal); margin-bottom: 8px; }
+.pipe-step h4 { font-size: 12px; font-weight: 600; margin-bottom: 6px; }
+.pipe-step p  { font-size: 11px; color: var(--silver); line-height: 1.5; }
+
+.callout {
+  background: rgba(0,180,216,0.06); border: 1px solid rgba(0,180,216,0.2);
+  border-radius: 6px; padding: 14px 18px; margin-bottom: 24px;
+  font-size: 12px; color: var(--muted); line-height: 1.65;
+}
+.callout strong { color: var(--teal-lt); }
+
+.feat-wrap { overflow-x: auto; margin-bottom: 24px; }
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+th {
+  font-family: var(--mono); font-size: 10px; color: var(--silver);
+  letter-spacing: 0.05em; text-align: left;
+  padding: 9px 14px; border-bottom: 1px solid var(--border);
+}
+td { padding: 9px 14px; border-bottom: 1px solid rgba(148,163,184,0.07); color: var(--muted); }
+tr:hover td { background: rgba(255,255,255,0.02); }
+.badge {
+  font-family: var(--mono); font-size: 10px; padding: 2px 7px;
+  border-radius: 3px; display: inline-block;
+}
+.bn { background: rgba(0,180,216,0.12); color: var(--teal); }
+.bc { background: rgba(148,163,184,0.1); color: var(--silver); }
+.be { background: rgba(56,212,240,0.1); color: var(--teal-lt); border: 1px solid rgba(56,212,240,0.2); }
+
+/* ── RESULTS TAB ── */
+.cm-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; margin-bottom: 32px; }
+.cm-card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 20px; }
+.cm-card.best { border-color: rgba(0,180,216,0.35); }
+.cm-title { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+.cm-sub   { font-family: var(--mono); font-size: 10px; color: var(--silver); margin-bottom: 14px; }
+.cm-grid  { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; margin-bottom: 12px; }
+.cm-cell  { border-radius: 4px; padding: 10px 6px; text-align: center; }
+.cm-n { font-family: var(--mono); font-size: 17px; font-weight: 500; }
+.cm-l { font-size: 9px; margin-top: 2px; }
+.c-tp  { background: rgba(0,180,216,0.13); } .c-tp .cm-n  { color: var(--teal-lt); }
+.c-tn  { background: rgba(0,180,216,0.07); } .c-tn .cm-n  { color: var(--teal); }
+.c-fp  { background: rgba(148,163,184,0.08); } .c-fp .cm-n { color: var(--silver); }
+.c-fn1 { background: rgba(239,68,68,0.12);  } .c-fn1 .cm-n { color: #F87171; }
+.c-fn2 { background: rgba(251,146,60,0.10); } .c-fn2 .cm-n { color: #FB923C; }
+.c-fn3 { background: rgba(52,211,153,0.10); } .c-fn3 .cm-n { color: #34D399; }
+.cm-ratio { font-family: var(--mono); font-size: 11px; background: rgba(255,255,255,0.04); border-radius: 4px; padding: 7px 10px; color: var(--muted); }
+.cm-ratio span { color: var(--white); }
+
+.fi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.fi-card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 20px; }
+.fi-card.best { border-color: rgba(0,180,216,0.3); }
+.fi-card h4 { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+.fi-sub { font-family: var(--mono); font-size: 10px; color: var(--silver); margin-bottom: 16px; }
+.fi-row { margin-bottom: 9px; }
+.fi-nm  { font-size: 11px; color: var(--muted); display: flex; justify-content: space-between; margin-bottom: 3px; }
+.fi-pct { font-family: var(--mono); font-size: 10px; color: var(--teal); }
+.fi-track { height: 5px; background: rgba(148,163,184,0.12); border-radius: 2px; }
+.fi-bar   { height: 5px; border-radius: 2px; background: var(--teal); }
+.fi-bar.dim { background: var(--silver); opacity: 0.4; }
+.fi-note { font-size: 11px; color: var(--silver); margin-top: 12px; line-height: 1.55; }
+
+/* ── INSIGHTS TAB ── */
+.insight-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 32px; }
+.ins-card {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 8px; padding: 20px;
+}
+.ins-card.wide { grid-column: span 3; }
+.ins-icon { font-size: 18px; margin-bottom: 10px; }
+.ins-card h4 { font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+.ins-card p  { font-size: 12px; color: var(--silver); line-height: 1.65; }
+
+.venn-wrap { display: flex; align-items: center; gap: 32px; }
+.legend-row { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
+.leg-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+.leg-txt { font-size: 12px; color: var(--silver); }
+.leg-txt strong { color: var(--white); font-family: var(--mono); }
+
+.etag-group { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 12px; }
+.etag {
+  font-size: 11px; padding: 3px 9px; border-radius: 4px;
+  border: 1px solid var(--border); color: var(--silver);
+}
+.etag.hi { border-color: rgba(0,180,216,0.3); color: var(--teal-lt); background: rgba(0,180,216,0.06); }
+
+/* ── FOOTER ── */
+.footer-bar {
+  border-top: 1px solid var(--border);
+  padding: 20px 48px;
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 12px; color: var(--silver);
+  max-width: 1100px; margin: 0 auto;
+}
+.footer-link { color: var(--teal); text-decoration: none; font-family: var(--mono); font-size: 11px; }
+.footer-link:hover { color: var(--teal-lt); }
+
+@media (max-width: 760px) {
+  header { padding: 16px 20px 0; }
+  .header-top { flex-direction: column; gap: 12px; }
+  .tab-panel { padding: 28px 20px; }
+  .stat-band, .pipeline, .model-row, .cm-row, .fi-grid,
+  .insight-grid, .overview-grid { grid-template-columns: 1fr; }
+  .ins-card.wide { grid-column: span 1; }
+  .footer-bar { flex-direction: column; gap: 10px; text-align: center; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-top">
+    <div class="header-title">
+      <h1>Predicting Supply Chain Delay Risk with <em>Interpretable ML</em></h1>
+      <p>LR · XGBoost · Explainable Boosting Machine &nbsp;|&nbsp; 180K orders · DataCo Supply Chain Dataset</p>
+    </div>
+    <div class="header-meta">
+      <a href="https://github.com/erinli2025/DSS-Thesis-Project-AY2025Dec-/tree/main" target="_blank" class="btn-gh">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+        View Code
+      </a>
+    </div>
+  </div>
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('overview')">Overview</button>
+    <button class="tab-btn" onclick="switchTab('data')">Data Processing</button>
+    <button class="tab-btn" onclick="switchTab('results')">Results</button>
+    <button class="tab-btn" onclick="switchTab('insights')">Insights</button>
+  </div>
+</header>
+
+<!-- ══ OVERVIEW ══ -->
+<div id="tab-overview" class="tab-panel active">
+
+  <div class="stat-band">
+    <div class="stat-cell"><div class="stat-num">180K</div><div class="stat-lbl">Order records (2015–2018)</div></div>
+    <div class="stat-cell"><div class="stat-num">99.3%</div><div class="stat-lbl">Best accuracy (EBM, test set)</div></div>
+    <div class="stat-cell"><div class="stat-num">28</div><div class="stat-lbl">Features after engineering</div></div>
+    <div class="stat-cell"><div class="stat-num">3</div><div class="stat-lbl">Models compared end-to-end</div></div>
+  </div>
+
+  <div class="overview-grid" style="margin-bottom:28px;">
+    <div class="overview-card">
+      <h3>What this project does</h3>
+      <p>Predicts binary order delay risk (late / on-time) across 180,000 supply chain records using three ML models — comparing not only accuracy but how well each model <em>explains</em> the drivers of delay. Key engineered features include order processing time, geocoded destination coordinates, and temporal decomposition of shipping dates.</p>
+    </div>
+    <div class="overview-card">
+      <h3>Why interpretability matters here</h3>
+      <p>A prediction alone is not enough for supply chain operations. Managers need to know <em>why</em> an order is at risk — to reroute, escalate, or adjust lead time. This study demonstrates that EBM matches black-box accuracy while providing direct, auditable explanations without SHAP as a post-hoc layer.</p>
+    </div>
+  </div>
+
+  <h3 style="font-size:13px;font-weight:600;margin-bottom:16px;color:var(--silver);">MODEL COMPARISON AT A GLANCE</h3>
+  <div class="model-row">
+    <div class="model-mini">
+      <div class="mm-name">Logistic Regression</div>
+      <div class="mm-type">Linear baseline · L2 regularized</div>
+      <div class="mm-metrics">
+        <div class="mm-row"><span class="mm-k">AUC-ROC</span><span class="mm-v">0.9989</span></div>
+        <div class="mm-row"><span class="mm-k">Accuracy</span><span class="mm-v">97.6%</span></div>
+        <div class="mm-row"><span class="mm-k">FN:FP ratio</span><span class="mm-v" style="color:#F87171;">0.14 ⚠</span></div>
+        <div class="mm-row"><span class="mm-k">Train time</span><span class="mm-v">~1.2s</span></div>
+      </div>
+      <div class="bar-t"><div class="bar-f" style="width:95%;background:var(--silver);opacity:0.5"></div></div>
+    </div>
+    <div class="model-mini">
+      <div class="mm-name">XGBoost</div>
+      <div class="mm-type">Gradient boosting · Black-box</div>
+      <div class="mm-metrics">
+        <div class="mm-row"><span class="mm-k">AUC-ROC</span><span class="mm-v hi">0.9997</span></div>
+        <div class="mm-row"><span class="mm-k">Accuracy</span><span class="mm-v">99.1%</span></div>
+        <div class="mm-row"><span class="mm-k">FN:FP ratio</span><span class="mm-v" style="color:#FB923C;">0.64</span></div>
+        <div class="mm-row"><span class="mm-k">Train time</span><span class="mm-v">~2.2s</span></div>
+      </div>
+      <div class="bar-t"><div class="bar-f" style="width:99%"></div></div>
+    </div>
+    <div class="model-mini best">
+      <div class="mm-name">EBM</div>
+      <div class="mm-type">Explainable Boosting Machine · Interpretable</div>
+      <div class="mm-metrics">
+        <div class="mm-row"><span class="mm-k">AUC-ROC</span><span class="mm-v hi">0.9998</span></div>
+        <div class="mm-row"><span class="mm-k">Accuracy</span><span class="mm-v hi">99.3%</span></div>
+        <div class="mm-row"><span class="mm-k">FN:FP ratio</span><span class="mm-v" style="color:#34D399;">0.88 ✓</span></div>
+        <div class="mm-row"><span class="mm-k">Train time</span><span class="mm-v" style="color:#FB923C;">~2 hrs</span></div>
+      </div>
+      <div class="bar-t"><div class="bar-f" style="width:99.3%"></div></div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>Key finding:</strong> EBM matches XGBoost's state-of-the-art accuracy while providing full inherent interpretability and the most balanced prediction error distribution — the traditional performance–transparency trade-off does not hold on this task.
+  </div>
+</div>
+
+<!-- ══ DATA ══ -->
+<div id="tab-data" class="tab-panel">
+
+  <div class="pipeline">
+    <div class="pipe-step">
+      <div class="pipe-num">01</div>
+      <h4>Remove Uninformative</h4>
+      <p>Dropped 19 identifier & PII fields (customer email, IDs, etc.) with zero logistics signal.</p>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num">02</div>
+      <h4>Remove Redundancy</h4>
+      <p>Removed 7 features causing multicollinearity (derived prices, duplicate profit columns).</p>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num">03</div>
+      <h4>Remove Leakage</h4>
+      <p>Excluded Delivery Status and real shipment days — both encode the target outcome directly.</p>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num">04</div>
+      <h4>Engineer Features</h4>
+      <p>Built Order Processing Time, temporal decompositions, and geocoded lat/lon via Nominatim API.</p>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num">05</div>
+      <h4>Encode & Split</h4>
+      <p>70/15/15 split first, then OOF target encoding for high-cardinality categoricals to prevent bleed.</p>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>Leakage prevention:</strong> All feature engineering performed <em>after</em> the train/validation/test split. Out-of-fold (OOF) encoding applied to categorical target-mean features — no information from validation/test sets bleeds into training.
+  </div>
+
+  <div class="feat-wrap">
+    <table>
+      <thead>
+        <tr><th>Feature</th><th>Type</th><th>Source</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Shipping Mode</td><td><span class="badge bc">Categorical</span></td><td>Original</td><td>Standard / First / Second Class / Same Day</td></tr>
+        <tr><td>Order Processing Time ★</td><td><span class="badge bn">Numerical</span></td><td><span class="badge be">Engineered</span></td><td>Days between Order Date and Shipping Date</td></tr>
+        <tr><td>Order Status</td><td><span class="badge bc">Categorical</span></td><td>Original</td><td>COMPLETE / PENDING / CLOSED / ON_HOLD etc.</td></tr>
+        <tr><td>Days for Shipment (Scheduled)</td><td><span class="badge bn">Numerical</span></td><td>Original</td><td>Planned lead time as registered in system</td></tr>
+        <tr><td>Latitude / Longitude (Destination) ★</td><td><span class="badge bn">Numerical</span></td><td><span class="badge be">Engineered</span></td><td>Geocoded via Nominatim API from Order City</td></tr>
+        <tr><td>Distance (km) ★</td><td><span class="badge bn">Numerical</span></td><td><span class="badge be">Engineered</span></td><td>Haversine distance: warehouse → destination</td></tr>
+        <tr><td>Order Month / Quarter / Year ★</td><td><span class="badge bc">Categorical</span></td><td><span class="badge be">Engineered</span></td><td>Temporal decomposition of Order Date</td></tr>
+        <tr><td>Shipping Month / Quarter / Year ★</td><td><span class="badge bc">Categorical</span></td><td><span class="badge be">Engineered</span></td><td>Temporal decomposition of Shipping Date</td></tr>
+        <tr><td>Market / Order Region / Country</td><td><span class="badge bc">Categorical</span></td><td>Top-K binned</td><td>Geographic delivery hierarchy (Africa → LATAM → USCA etc.)</td></tr>
+        <tr><td>Order Item Profit Ratio</td><td><span class="badge bn">Numerical</span></td><td>Original</td><td>Profit margin per item</td></tr>
+        <tr><td>Customer Segment</td><td><span class="badge bc">Categorical</span></td><td>Original</td><td>Consumer / Corporate / Home Office</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p style="font-size:11px;color:var(--silver);">★ Engineered features. High-cardinality categoricals (&gt;10 unique values) use target mean encoding (OOF); ≤10 categories one-hot encoded for LR. XGBoost and EBM use native categorical handling.</p>
+</div>
+
+<!-- ══ RESULTS ══ -->
+<div id="tab-results" class="tab-panel">
+
+  <h3 style="font-size:13px;font-weight:600;margin-bottom:6px;color:var(--silver);">CONFUSION MATRIX — Test Set</h3>
+  <p style="font-size:12px;color:var(--silver);margin-bottom:20px;">FN = missed real delays (operational cost). FP = false alarms. FN:FP near 1.0 = balanced predictions.</p>
+
+  <div class="cm-row">
+    <div class="cm-card">
+      <div class="cm-title">Logistic Regression</div>
+      <div class="cm-sub">FN:FP → 0.14 — strongly biased toward missed delays</div>
+      <div class="cm-grid">
+        <div class="cm-cell c-tn"><div class="cm-n">12,153</div><div class="cm-l" style="color:var(--teal)">True Negative</div></div>
+        <div class="cm-cell c-fp"><div class="cm-n">79</div><div class="cm-l" style="color:var(--silver)">False Positive</div></div>
+        <div class="cm-cell c-fn1"><div class="cm-n">567</div><div class="cm-l" style="color:#F87171">False Negative ⚠</div></div>
+        <div class="cm-cell c-tp"><div class="cm-n">14,279</div><div class="cm-l" style="color:var(--teal-lt)">True Positive</div></div>
+      </div>
+      <div class="cm-ratio">Misses <span>567</span> real delays per 27K orders</div>
+    </div>
+    <div class="cm-card">
+      <div class="cm-title">XGBoost</div>
+      <div class="cm-sub">FN:FP → 0.64 — moderate FN bias, occasional overconfident errors</div>
+      <div class="cm-grid">
+        <div class="cm-cell c-tn"><div class="cm-n">12,134</div><div class="cm-l" style="color:var(--teal)">True Negative</div></div>
+        <div class="cm-cell c-fp"><div class="cm-n">98</div><div class="cm-l" style="color:var(--silver)">False Positive</div></div>
+        <div class="cm-cell c-fn2"><div class="cm-n">154</div><div class="cm-l" style="color:#FB923C">False Negative</div></div>
+        <div class="cm-cell c-tp"><div class="cm-n">14,692</div><div class="cm-l" style="color:var(--teal-lt)">True Positive</div></div>
+      </div>
+      <div class="cm-ratio">Some FP probabilities exceed <span>0.90</span> — high-confidence mistakes</div>
+    </div>
+    <div class="cm-card best">
+      <div class="cm-title">EBM — Most Balanced</div>
+      <div class="cm-sub">FN:FP → 0.88 — nearest to 1.0, most operationally reliable</div>
+      <div class="cm-grid">
+        <div class="cm-cell c-tn"><div class="cm-n">12,126</div><div class="cm-l" style="color:var(--teal)">True Negative</div></div>
+        <div class="cm-cell c-fp"><div class="cm-n">106</div><div class="cm-l" style="color:var(--silver)">False Positive</div></div>
+        <div class="cm-cell c-fn3"><div class="cm-n">120</div><div class="cm-l" style="color:#34D399">False Negative ✓</div></div>
+        <div class="cm-cell c-tp"><div class="cm-n">14,726</div><div class="cm-l" style="color:var(--teal-lt)">True Positive</div></div>
+      </div>
+      <div class="cm-ratio">Cyclic boosting mechanism reduces overconfident errors</div>
+    </div>
+  </div>
+
+  <h3 style="font-size:13px;font-weight:600;margin-bottom:16px;color:var(--silver);">FEATURE IMPORTANCE</h3>
+  <div class="fi-grid">
+    <div class="fi-card">
+      <h4>XGBoost — Concentrated</h4>
+      <div class="fi-sub">Gain-based importance · 3 features dominate</div>
+      <div class="fi-row"><div class="fi-nm"><span>Order Processing Time</span><span class="fi-pct">~52%</span></div><div class="fi-track"><div class="fi-bar" style="width:100%"></div></div></div>
+      <div class="fi-row"><div class="fi-nm"><span>Shipping Mode</span><span class="fi-pct">~38%</span></div><div class="fi-track"><div class="fi-bar" style="width:73%"></div></div></div>
+      <div class="fi-row"><div class="fi-nm"><span>Order Status</span><span class="fi-pct">~6%</span></div><div class="fi-track"><div class="fi-bar" style="width:12%"></div></div></div>
+      <div class="fi-row"><div class="fi-nm"><span>All other 25 features</span><span class="fi-pct">~4%</span></div><div class="fi-track"><div class="fi-bar dim" style="width:8%"></div></div></div>
+      <p class="fi-note">Nearly all predictive weight sits on 3 features. Strong but brittle on edge cases — occasional high-confidence errors when outlier feature combinations appear.</p>
+    </div>
+    <div class="fi-card best">
+      <h4>EBM — Distributed</h4>
+      <div class="fi-sub">Mean absolute score · broader signal basis</div>
+      <div class="fi-row"><div class="fi-nm"><span>Shipping Mode</span><span class="fi-pct">highest</span></div><div class="fi-track"><div class="fi-bar" style="width:100%"></div></div></div>
+      <div class="fi-row"><div class="fi-nm"><span>Order Processing Time</span><span class="fi-pct">high</span></div><div class="fi-track"><div class="fi-bar" style="width:88%"></div></div></div>
+      <div class="fi-row"><div class="fi-nm"><span>Order Status</span><span class="fi-pct">medium</span></div><div class="fi-track"><div class="fi-bar" style="width:38%"></div></div></div>
+      <div class="fi-row"><div class="fi-nm"><span>Shipping / Order Month</span><span class="fi-pct">low</span></div><div class="fi-track"><div class="fi-bar dim" style="width:18%"></div></div></div>
+      <div class="fi-row"><div class="fi-nm"><span>Geo interactions (lat × dist)</span><span class="fi-pct">low</span></div><div class="fi-track"><div class="fi-bar dim" style="width:12%"></div></div></div>
+      <p class="fi-note">Retains weaker but meaningful signals across seasonal and geographic features. More diversified basis explains the more balanced FN:FP distribution.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ══ INSIGHTS ══ -->
+<div id="tab-insights" class="tab-panel">
+
+  <div class="insight-grid">
+    <div class="ins-card">
+      <div class="ins-icon">⚡</div>
+      <h4>Expedited Orders Are the Core Risk</h4>
+      <p>Same-day shipments with near-zero processing time are the highest-risk and hardest-to-predict segment. All three models fail here. Enhanced monitoring and pre-emptive buffer protocols should target this shipping class specifically.</p>
+    </div>
+    <div class="ins-card">
+      <div class="ins-icon">🌏</div>
+      <h4>Pacific Asia Needs Separate Treatment</h4>
+      <p>Errors concentrate disproportionately in Pacific Asia — not because of small sample size (Africa is smaller), but due to structural feature differences. A region-specific model or calibrated risk adjustment would improve precision for this market.</p>
+    </div>
+    <div class="ins-card">
+      <div class="ins-icon">📅</div>
+      <h4>Holiday Periods Shift the Distribution</h4>
+      <p>January and December show the highest error rates, corresponding to peak logistics stress. Seasonal anomalies shift the feature distribution enough that models trained on average conditions struggle to generalize to these periods.</p>
+    </div>
+    <div class="ins-card">
+      <div class="ins-icon">💡</div>
+      <h4>Order Status as a Lifecycle Signal</h4>
+      <p>PENDING and PENDING_PAYMENT orders drive the most misclassifications. These mid-lifecycle states lack the clear feature signals of COMPLETE or CLOSED orders. In contrast, CANCELED and SUSPECTED_FRAUD — despite tiny counts — produce zero systematic errors due to concentrated, distinct feature profiles.</p>
+    </div>
+    <div class="ins-card">
+      <div class="ins-icon">⚖️</div>
+      <h4>Interpretability Doesn't Cost Accuracy</h4>
+      <p>EBM matched or marginally exceeded XGBoost test accuracy (99.3% vs 99.1%) while delivering full inherent interpretability and the most balanced FN:FP ratio. The traditional performance–transparency trade-off does not hold here.</p>
+    </div>
+    <div class="ins-card">
+      <div class="ins-icon">🔍</div>
+      <h4>EBM Enables Direct Operational Decisions</h4>
+      <p>Unlike XGBoost's SHAP post-hoc layer, EBM's feature contribution curves are part of the model itself. A supply chain manager can read why a specific order was flagged — and act immediately without a data science intermediary.</p>
+    </div>
+  </div>
+
+  <!-- Error overlap -->
+  <div class="ins-card" style="margin-bottom:16px;">
+    <h4>Error Overlap: Where Models Agree and Disagree</h4>
+    <div class="venn-wrap" style="margin-top:18px;">
+      <div style="flex-shrink:0;">
+        <svg width="260" height="200" viewBox="0 0 260 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="90" cy="105" r="82" fill="rgba(148,163,184,0.08)" stroke="rgba(148,163,184,0.3)" stroke-width="1.5"/>
+          <circle cx="162" cy="76" r="50" fill="rgba(0,180,216,0.08)" stroke="rgba(0,180,216,0.3)" stroke-width="1.5"/>
+          <circle cx="167" cy="138" r="50" fill="rgba(56,212,240,0.06)" stroke="rgba(56,212,240,0.25)" stroke-width="1.5"/>
+          <text x="38" y="108" font-family="Inter,sans-serif" font-size="10" fill="#94A3B8">LR only</text>
+          <text x="35" y="122" font-family="DM Mono,monospace" font-size="14" fill="#F8FAFC">434</text>
+          <text x="185" y="60" font-family="Inter,sans-serif" font-size="10" fill="#00B4D8">XGB</text>
+          <text x="192" y="74" font-family="DM Mono,monospace" font-size="13" fill="#F8FAFC">44</text>
+          <text x="196" y="152" font-family="Inter,sans-serif" font-size="10" fill="#38D4F0">EBM</text>
+          <text x="200" y="166" font-family="DM Mono,monospace" font-size="13" fill="#F8FAFC">56</text>
+          <text x="135" y="102" font-family="DM Mono,monospace" font-size="12" fill="#F8FAFC" text-anchor="middle">77</text>
+          <text x="135" y="113" font-family="Inter,sans-serif" font-size="9" fill="#94A3B8" text-anchor="middle">all 3 wrong</text>
+          <text x="128" y="78" font-family="DM Mono,monospace" font-size="11" fill="#CBD5E1" text-anchor="middle">85</text>
+          <text x="128" y="138" font-family="DM Mono,monospace" font-size="11" fill="#CBD5E1" text-anchor="middle">47</text>
+          <text x="170" y="108" font-family="DM Mono,monospace" font-size="11" fill="#CBD5E1" text-anchor="middle">46</text>
+        </svg>
+      </div>
+      <div>
+        <div class="legend-row"><div class="leg-dot" style="background:#94A3B8"></div><div class="leg-txt"><strong>434</strong> errors unique to LR — eliminated by nonlinear models, exposing LR's linear boundary limitations.</div></div>
+        <div class="legend-row"><div class="leg-dot" style="background:#6366F1"></div><div class="leg-txt"><strong>77</strong> errors shared by all three models — "hard cases" with extreme time pressure, sparse features, or ambiguous order states.</div></div>
+        <div class="legend-row"><div class="leg-dot" style="background:#38D4F0"></div><div class="leg-txt"><strong>123</strong> errors shared by XGBoost + EBM (54% of EBM's total errors) — the difficulty is in the data itself, not the model architecture.</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ins-card">
+    <h4>Profile of Hard-to-Predict Orders</h4>
+    <p>T-tests across misclassified samples identified features significantly different from the full dataset distribution (p &lt; 0.05). Hard orders share a consistent operational profile:</p>
+    <div class="etag-group">
+      <span class="etag hi">Same-day shipment</span>
+      <span class="etag hi">Processing time ≈ 0 days</span>
+      <span class="etag hi">Low profit margin</span>
+      <span class="etag hi">Pacific Asia destination</span>
+      <span class="etag hi">January / December orders</span>
+      <span class="etag">PENDING or PENDING_PAYMENT status</span>
+      <span class="etag">"Other" product category (binned)</span>
+      <span class="etag">Extreme scheduled lead time values</span>
+    </div>
+  </div>
+</div>
+
+<div style="padding: 0 48px;">
+  <div class="footer-bar">
+    <span>Supply Chain Delay Risk Prediction · MSc Data Science &amp; Society · Tilburg University · 2025</span>
+    <a href="https://github.com/erinli2025/DSS-Thesis-Project-AY2025Dec-/tree/main" target="_blank" class="footer-link">github.com/erinli2025/DSS-Thesis-Project-AY2025Dec-</a>
+  </div>
+</div>
+
+<script>
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.currentTarget.classList.add('active');
+}
+</script>
+</body>
+</html>
